@@ -1,6 +1,9 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:chatapp/models/hive/hive_user.dart';
+import 'package:chatapp/services/contact.dart';
+import 'package:chatapp/services/database.dart';
 import 'package:chatapp/utilities/constants.dart';
 import 'package:chatapp/services/sharedPreference.dart';
 import 'package:http/http.dart' as http;
@@ -9,37 +12,59 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:chatapp/utilities/extension/string.dart';
 
 class User {
-  User({this.name, this.image, this.phoneNumber, this.id});
+  User({this.name, this.image, this.phoneNumber});
 
-  String id;
   String name;
   File image;
   String phoneNumber;
   bool isConnectionDataSet = false;
+  DeviceContact deviceContact = DeviceContact();
 
   Future<Map> register() async {
     try{
+      await deviceContact.getAllContacts();
+      List contactsPhoneNumbers = deviceContact.allContacts.map((contact) => contact['phoneNumber']).toList();
+
       http.Response res = await http.post(
         Uri.http(serverURI, 'signup'),
         headers: <String, String>{
           'Content-Type': 'application/json; charset=UTF-8',
         },
-        body: jsonEncode(<String, String>{
+        body: jsonEncode(<String, dynamic>{
           'name': this.name,
           'phoneNumber': this.phoneNumber,
+          'contactsPhoneNumbers': contactsPhoneNumbers,
         }),
       );
       Map response = jsonDecode(res.body);
+
+      if(response['success']){
+        final Directory path = await getApplicationDocumentsDirectory();
+        if (this.image != null) {
+          await this.image.copy('${path.path}/profile.png');
+        }
+
+        List registeredContactsPhoneNumbers = response['registeredContactsPhoneNumbers'];
+
+        this.deviceContact.saveRegisteredContacts(registeredContactsPhoneNumbers);
+
+        HiveUser hiveUser = HiveUser();
+
+        hiveUser.phoneNumber = phoneNumber;
+        hiveUser.name = name;
+
+        databaseManager.saveUser(hiveUser);
+      }
       return response;
     }
     catch(e){
       print('-----Register Error----');
       print(e);
-      return null;
+      return {"success": false, "message": "error"};
     }
   }
 
-  static Future<User> login({String phoneNumber}) async {
+  Future<String> login({isRegistering}) async {
     try{
       http.Response res = await http.post(
           Uri.http(serverURI, 'login'),
@@ -53,16 +78,18 @@ class User {
       Map response = jsonDecode(res.body);
 
       if(response['success']){
-        SharedPreferences pref = await getPreference();
-        await pref.setString('jwt-token', response['token']);
-        await pref.setString('name', response['user']['name']);
-        await pref.setString('id', response['user']['_id']);
-        await pref.setString('phoneNumber', phoneNumber.getCleanPhoneNumber());
+        if(isRegistering) return response['token'];
 
-        final Directory path = await getApplicationDocumentsDirectory();
-        File image = File('$path/profile.png');
-        User user = User(phoneNumber: phoneNumber, name: response['user']['name'], id: response['user']['_id'], image: image);
-        return user;
+        HiveUser hiveUser = HiveUser();
+
+        hiveUser.phoneNumber = response['user']['phoneNumber'];
+        hiveUser.name = response['user']['name'];
+
+        databaseManager.saveUser(hiveUser);
+
+        this.deviceContact.refreshRegisteredContacts(response['token']);
+
+        return response['token'];
       }
       return null;
     }
@@ -74,29 +101,18 @@ class User {
   }
 
   Future<void> getUserData() async {
-    SharedPreferences pref = await getPreference();
     final Directory path = await getApplicationDocumentsDirectory();
+    HiveUser hiveUser = databaseManager.getUser();
 
     this.image = File('${path.path}/profile.png');
-    this.name = pref.getString('name');
-    this.id = pref.getString('id');
-    this.phoneNumber = pref.getString('phoneNumber');
+    this.name = hiveUser.name;
+
+    this.phoneNumber = hiveUser.phoneNumber;
   }
 
   static Future<void> logout() async {
     SharedPreferences pref = await getPreference();
     await pref.remove('jwt-token');
-  }
-
-  static Future<List> findUser(String searchedUser) async {
-    http.Response res = await http.get(
-        Uri.http(serverURI, 'find-user/$searchedUser'),
-        headers: <String, String>{
-          'Content-Type': 'application/json; charset=UTF-8',
-        },
-    );
-    Map response = jsonDecode(res.body);
-    return response['searchResults'];
   }
 
   Future<bool> setSocketConnectionData(jwt, socketID) async {

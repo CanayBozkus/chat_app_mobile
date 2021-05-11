@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:chatapp/models/chat_room.dart';
 import 'package:chatapp/models/hive/hive_chatroom.dart';
@@ -11,12 +12,13 @@ import 'package:chatapp/services/sharedPreference.dart';
 import 'package:chatapp/services/socketio.dart';
 import 'package:chatapp/utilities/constants.dart';
 import 'package:flutter/foundation.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:chatapp/utilities/extension/string.dart';
 import 'package:http/http.dart' as http;
 class GeneralProvider with ChangeNotifier {
   User _user;
-  DeviceContact _deviceContact;
+
   List<ChatRoom> _chatRooms = [];
   String _jwt;
   SocketIO _socketIO;
@@ -24,16 +26,27 @@ class GeneralProvider with ChangeNotifier {
   bool _isDataInitialized = false;
 
   User get user => this._user;
-  DeviceContact get deviceContact => this._deviceContact;
   List<ChatRoom> get chatRooms => this._chatRooms;
 
-  Future<bool> login({phoneNumber}) async {
-    this._user = await User.login(phoneNumber: phoneNumber);
+  Future<bool> login({User user, bool isRegistering = false}) async {
 
-    if(this._user == null){
+    this._jwt = await user.login(isRegistering: isRegistering);
+
+    if(this._jwt == null){
       return false;
     }
+    SharedPreferences pref = await getPreference();
+    pref.setString('jwt-token', this._jwt);
     return true;
+  }
+
+  Future<bool> register(User user) async {
+    Map registerResult = await user.register();
+    if(registerResult['success']){
+      bool loginResult = await this.login(user: user, isRegistering: true);
+      return loginResult;
+    }
+    return false;
   }
 
   Future<void> initializeAppData() async {
@@ -60,15 +73,13 @@ class GeneralProvider with ChangeNotifier {
     this.sentMessageSeenHandler();
     this.contactsOnlineStatusHandler();
     
-    this.checkOnlineContacts();
+    //this.checkOnlineContacts();
 
     this._isDataInitialized = true;
   }
 
   void getContacts() {
-    this._deviceContact = DeviceContact();
-    this._deviceContact.getRegisteredContacts();
-
+    this._user.deviceContact.getRegisteredContacts();
   }
 
   void getChatRooms(){
@@ -103,7 +114,7 @@ class GeneralProvider with ChangeNotifier {
     this._socketIO.connect((socketID) async {
       bool success = await this.user.setSocketConnectionData(_jwt, socketID);
       if(success){
-        await this.checkOnlineContacts();
+        //await this.checkOnlineContacts();
       }
       return success;
     });
@@ -144,7 +155,7 @@ class GeneralProvider with ChangeNotifier {
         orElse: () => null
     );
     if(room == null){
-      String name = this._deviceContact.contacts.firstWhere(
+      String name = this._user.deviceContact.registeredContacts.firstWhere(
             (element) => element['phoneNumber'] == message['from'],
         orElse: () => {'name': message['from']},
       )['name'];
@@ -164,9 +175,9 @@ class GeneralProvider with ChangeNotifier {
   }
 
   Future<void> refreshContactsAndChatRoomData() async {
-    await this._deviceContact.refreshRegisteredContacts(this._jwt);
+    await this._user.deviceContact.refreshRegisteredContacts(this._jwt);
     this._chatRooms.forEach((ChatRoom room) async {
-      Map contact = this._deviceContact.contacts.firstWhere((element) => element['phoneNumber'].getCleanPhoneNumber() == room.to);
+      Map contact = this._user.deviceContact.registeredContacts.firstWhere((element) => element['phoneNumber'].getCleanPhoneNumber() == room.to);
       room.name = contact['name'];
       await room.saveChatRoom();
     });
@@ -222,14 +233,14 @@ class GeneralProvider with ChangeNotifier {
   }
 
   Future<void> checkOnlineContacts() async {
-    await this._deviceContact.checkOnlineContacts(this._jwt);
+    await this._user.deviceContact.checkOnlineContacts(this._jwt);
   }
   
   void contactsOnlineStatusHandler(){
     this._socketIO.setContactsOnlineStatusChannelHandler((data){
       List onlineContacts = data['onlineContacts'];
       print(data);
-      this._deviceContact.contacts.forEach((contact) {
+      this._user.deviceContact.registeredContacts.forEach((contact) {
         if(onlineContacts.contains(contact['phoneNumber'])){
           contact['online'] = true;
         }

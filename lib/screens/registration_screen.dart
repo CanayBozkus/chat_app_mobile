@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:chatapp/models/user.dart';
+import 'package:chatapp/screens/main_screen.dart';
 import 'package:chatapp/utilities/constants.dart';
 import 'package:chatapp/widgets/base_button.dart';
 import 'package:chatapp/widgets/base_dropdownfield.dart';
@@ -9,6 +10,8 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:chatapp/utilities/extension/string.dart';
+import 'package:provider/provider.dart';
+import 'package:chatapp/utilities/general_provider.dart';
 
 class RegistrationScreen extends StatefulWidget {
   static const routeName = 'RegistrationScreen';
@@ -91,9 +94,6 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
                           if(value.isEmpty){
                             return 'Please enter your name.';
                           }
-                          else if(value.contains(RegExp(r"[0-9]+"))){
-                            return 'Name cannot contain number.';
-                          }
                           return null;
                         },
                       ),
@@ -108,7 +108,6 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
                         },
                         validator: (String value){
                           value = value.getCleanPhoneNumber();
-                          print(value);
                           if(value.isEmpty){
                             return 'Please enter your phone number.';
                           }
@@ -133,18 +132,17 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
                       _isCreating = true;
                     });
                     _formKey.currentState.save();
-                    Map res = await _user.register();
-                    if(res['success']){
-                      final Directory path = await getApplicationDocumentsDirectory();
-                      await _user.image.copy('${path.path}/profile.png');
-                      return Navigator.pop(context);
+                    bool result = await context.read<GeneralProvider>().register(_user);
+
+                    if(result){
+                      return Navigator.pushReplacementNamed(context, MainScreen.routeName);
                     }
                     showDialog(
                       context: context,
                       builder: (BuildContext context){
                         return AlertDialog(
                           title: Text('Error'),
-                          content: Text(res['message']),
+                          content: Text('error'),
                         );
                       },
                     );

@@ -2,7 +2,6 @@ import 'package:chatapp/models/user.dart';
 import 'package:chatapp/screens/login_screen.dart';
 import 'package:chatapp/screens/contacts_screen.dart';
 import 'package:chatapp/screens/profile_screen.dart';
-import 'package:chatapp/screens/search_screen.dart';
 import 'package:chatapp/services/database.dart';
 import 'package:chatapp/services/notification_plugin.dart';
 import 'package:chatapp/utilities/constants.dart';
@@ -76,7 +75,7 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
           IconButton(
             icon: Icon(Icons.search),
             onPressed: (){
-              Navigator.pushNamed(context, SearchScreen.routeName);
+
             },
           ),
           PopupMenuButton(

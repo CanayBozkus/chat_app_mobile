@@ -15,7 +15,7 @@ class ContactsScreen extends StatelessWidget {
   static const routeName = 'ContactsScreen';
   @override
   Widget build(BuildContext context) {
-    List<Map<String, Object>> contacts = context.watch<GeneralProvider>().deviceContact.contacts;
+    List<Map<String, Object>> contacts = context.watch<GeneralProvider>().user.deviceContact.registeredContacts;
     return Scaffold(
       appBar: AppBar(
         elevation: 0,

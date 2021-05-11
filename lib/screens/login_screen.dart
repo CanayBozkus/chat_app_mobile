@@ -12,6 +12,7 @@ import 'package:chatapp/utilities/extension/string.dart';
 class LoginScreen extends StatelessWidget {
   static const routeName = 'LoginScreen';
   final _formKey = GlobalKey<FormState>();
+  final User _user = User();
   @override
   Widget build(BuildContext context) {
     String phoneNumber;
@@ -42,9 +43,9 @@ class LoginScreen extends StatelessWidget {
                     children: [
                       BaseTextFormField(
                         hintText: 'Phone Number',
-                        keyboardType: KeyboardTypes.email,
+                        keyboardType: KeyboardTypes.phone,
                         onSaved: (String value){
-                          phoneNumber = value.getCleanPhoneNumber();
+                          _user.phoneNumber = value.getCleanPhoneNumber();
                         },
                       ),
                     ],
@@ -57,7 +58,7 @@ class LoginScreen extends StatelessWidget {
                 onPressed: () async {
                   if(_formKey.currentState.validate()){
                     _formKey.currentState.save();
-                    bool result = await context.read<GeneralProvider>().login(phoneNumber: phoneNumber);
+                    bool result = await context.read<GeneralProvider>().login(user: _user);
                     if(result){
                       Navigator.pushReplacementNamed(context, MainScreen.routeName);
                     }

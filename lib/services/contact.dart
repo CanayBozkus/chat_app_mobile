@@ -8,18 +8,24 @@ import 'package:chatapp/utilities/extension/string.dart';
 
 class DeviceContact {
 
-  List<Map<String, dynamic>> _contacts;
+  List<Map<String, dynamic>> registeredContacts = [];
+  List<Map<String, dynamic>> allContacts = [];
 
-  List<Map<String, dynamic>> get contacts => this._contacts;
-
-  Future<List> _getAllContacts() async {
+  Future<void> getAllContacts() async {
     Iterable<Contact> contactsRaw = await ContactsService.getContacts();
-    return contactsRaw.toList().map((Contact contact){
+    this.allContacts = contactsRaw.toList().map((Contact contact){
       return {
         'name': contact.displayName,
         'phoneNumber': contact.phones.firstWhere((element) => element.label == 'mobil').value.getCleanPhoneNumber(),
       };
     }).toList();
+  }
+
+  void saveRegisteredContacts(List registeredContactsPhoneNumbers){
+    List registeredContacts = allContacts.where(
+            (contact) => registeredContactsPhoneNumbers.contains(contact['phoneNumber'].toString().getCleanPhoneNumber())
+    ).toList();
+    databaseManager.saveContacts(registeredContacts);
   }
 
   Future<List> _getRegisteredContactsFromCloud(List contacts, String jwt) async {
@@ -45,22 +51,25 @@ class DeviceContact {
   }
 
   refreshRegisteredContacts(String jwt) async {
-    List contacts = await this._getAllContacts();
-    List registeredContacts = await this._getRegisteredContactsFromCloud(contacts, jwt);
+    if(this.allContacts.isEmpty){
+      await this.getAllContacts();
+    }
+    List registeredContacts = await this._getRegisteredContactsFromCloud(allContacts, jwt);
     if(registeredContacts == null){
       print('------- registered contacts returned null handle error ----');
       return;
     }
-    this._contacts = contacts.where((contact) => registeredContacts.contains(contact['phoneNumber'].toString().getCleanPhoneNumber())).toList();
-    databaseManager.saveContacts(contacts);
+    this.saveRegisteredContacts(registeredContacts);
+    //this._conta = contacts.where((contact) => registeredContacts.contains(contact['phoneNumber'].toString().getCleanPhoneNumber())).toList();
+    //databaseManager.saveContacts(contacts);
   }
 
   void getRegisteredContacts(){
-    this._contacts = databaseManager.getContacts();
+    this.registeredContacts = databaseManager.getContacts();
   }
 
   Future<void> checkOnlineContacts(String jwt) async {
-    List contactsNumbers = this.contacts.map((e) => e['phoneNumber']).toList();
+    //List contactsNumbers = this.contacts.map((e) => e['phoneNumber']).toList();
 
     try{
       http.Response res = await http.post(
@@ -70,7 +79,7 @@ class DeviceContact {
           'Authorization': 'Bearer $jwt'
         },
         body: jsonEncode(<String, List>{
-          'contactsNumbers': contactsNumbers,
+          //'contactsNumbers': contactsNumbers,
         }),
       );
       Map response = jsonDecode(res.body);
