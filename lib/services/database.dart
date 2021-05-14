@@ -54,7 +54,7 @@ class Database {
   List<Map<String, dynamic>> getContacts(){
     List<Map<String, dynamic>> contacts = [];
     _registeredContact.values.forEach((contact){
-      contacts.add({'name': contact.name, 'phoneNumber': contact.phoneNumber, 'online': false});
+      contacts.add({'name': contact.name, 'phoneNumber': contact.phoneNumber, 'online': false, 'lastSeen': null});
     });
     return contacts;
   }

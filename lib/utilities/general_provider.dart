@@ -42,6 +42,7 @@ class GeneralProvider with ChangeNotifier {
 
   Future<bool> register(User user) async {
     Map registerResult = await user.register();
+    print(registerResult);
     if(registerResult['success']){
       bool loginResult = await this.login(user: user, isRegistering: true);
       return loginResult;
@@ -181,6 +182,8 @@ class GeneralProvider with ChangeNotifier {
       room.name = contact['name'];
       await room.saveChatRoom();
     });
+    this._user.deviceContact.registeredContacts = [];
+    this.getContacts();
     notifyListeners();
   }
 
@@ -232,8 +235,19 @@ class GeneralProvider with ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> checkOnlineContacts() async {
-    await this._user.deviceContact.checkOnlineContacts(this._jwt);
+  Future<void> subscribeChannelOfContact(ChatRoom room) async {
+    Map response = await this._user.deviceContact.checkContactStatus(this._jwt, room.to);
+    if(response['success']){
+      room.lastSeen = response['lastSeen'] != null ? DateTime.parse(response['lastSeen']) : null;
+      room.online = response['online'];
+      _socketIO.subscribeChannel(room.to, (data){
+        room.lastSeen = data['lastSeen'] != null ? DateTime.parse(data['lastSeen']) : null;
+        room.online = data['online'];
+        print(data['online']);
+        notifyListeners();
+      });
+    }
+    notifyListeners();
   }
   
   void contactsOnlineStatusHandler(){

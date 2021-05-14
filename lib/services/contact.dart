@@ -16,7 +16,7 @@ class DeviceContact {
     this.allContacts = contactsRaw.toList().map((Contact contact){
       return {
         'name': contact.displayName,
-        'phoneNumber': contact.phones.firstWhere((element) => element.label == 'mobil').value.getCleanPhoneNumber(),
+        'phoneNumber': contact.phones.firstWhere((element) => element.label == 'mobile' || element.label == 'mobil').value.getCleanPhoneNumber(),
       };
     }).toList();
   }
@@ -51,9 +51,8 @@ class DeviceContact {
   }
 
   refreshRegisteredContacts(String jwt) async {
-    if(this.allContacts.isEmpty){
-      await this.getAllContacts();
-    }
+    await this.getAllContacts();
+
     List registeredContacts = await this._getRegisteredContactsFromCloud(allContacts, jwt);
     if(registeredContacts == null){
       print('------- registered contacts returned null handle error ----');
@@ -68,25 +67,28 @@ class DeviceContact {
     this.registeredContacts = databaseManager.getContacts();
   }
 
-  Future<void> checkOnlineContacts(String jwt) async {
+  Future<Map> checkContactStatus(String jwt, String phoneNumber) async {
     //List contactsNumbers = this.contacts.map((e) => e['phoneNumber']).toList();
 
     try{
       http.Response res = await http.post(
-        Uri.http(serverURI, 'check-online-contacts'),
+        Uri.http(serverURI, 'check-contact-status'),
         headers: <String, String>{
           'Content-Type': 'application/json; charset=UTF-8',
           'Authorization': 'Bearer $jwt'
         },
-        body: jsonEncode(<String, List>{
-          //'contactsNumbers': contactsNumbers,
+        body: jsonEncode(<String, String>{
+          'phoneNumber': phoneNumber,
         }),
       );
       Map response = jsonDecode(res.body);
+      print(response);
+      return response;
     }
     catch(e){
       print('----- check-online-contacts Error----');
       print(e);
+      return {'success': false, 'lastSeen': null};
     }
   }
 }

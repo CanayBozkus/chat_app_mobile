@@ -19,6 +19,8 @@ class ChatRoom {
   DateTime createdDate;
   String to;
   int unseenMessageCount = 0;
+  bool online = false;
+  DateTime lastSeen;
 
   ChatRoom({
     this.members,

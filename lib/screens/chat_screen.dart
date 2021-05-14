@@ -33,6 +33,7 @@ class _ChatScreenState extends State<ChatScreen> {
         .chatRooms
         .firstWhere((element) => element == widget.chatRoom, orElse: () => widget.chatRoom);
     context.read<GeneralProvider>().sendMessageSeenInfo(room);
+    context.read<GeneralProvider>().subscribeChannelOfContact(room);
 
     this._init = true;
   }
@@ -52,7 +53,7 @@ class _ChatScreenState extends State<ChatScreen> {
         appBar: AppBar(
           backgroundColor: kPrimaryColor,
           title: Text(
-              room.name,
+              '${room.name} - ${room.online}',
               style: kAppbarTitleStyle
           ),
           actions: [

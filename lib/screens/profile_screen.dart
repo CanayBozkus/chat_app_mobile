@@ -48,6 +48,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               ),
             ),
           ),
+          Text(user.phoneNumber),
         ],
       ),
     );

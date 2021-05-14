@@ -48,4 +48,8 @@ class SocketIO {
   setContactsOnlineStatusChannelHandler(Function handler){
     this._socket.on('online-status', handler);
   }
+
+  subscribeChannel(String channel, Function handler){
+    this._socket.on(channel, handler);
+  }
 }
